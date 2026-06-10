@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NOVA — AI Voice Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <!-- particle canvas -->
+  <canvas id="cvs"></canvas>
+
+  <!-- HUD corner brackets -->
+  <div class="hud tl"></div><div class="hud tr"></div>
+  <div class="hud bl"></div><div class="hud br"></div>
+
+  <!-- ── TOP BAR ─────────────────────────────────────── -->
+  <header class="topbar">
+    <span class="brand">NOVA OS <span class="brand-ver">v2.0</span></span>
+    <div class="status-pill">
+      <span class="sdot" id="sdot"></span>
+      <span class="slabel" id="slabel">CONNECTING…</span>
+    </div>
+    <span class="tclock" id="tclock">00:00:00</span>
+  </header>
+
+  <!-- ── MAIN ────────────────────────────────────────── -->
+  <main class="layout">
+
+    <!-- LEFT: conversation log -->
+    <aside class="glass-panel">
+      <div class="panel-title"><span class="tico">▣</span> INTERACTION LOG</div>
+      <div class="log-scroll" id="log">
+        <div class="log-empty" id="logEmpty">Awaiting voice input…</div>
+      </div>
+    </aside>
+
+    <!-- CENTER: orb + controls -->
+    <section class="center-col">
+
+      <!-- ORB -->
+      <div class="orb-wrap" id="orbWrap">
+        <div class="ring ri1"></div>
+        <div class="ring ri2"></div>
+        <div class="ring ri3"></div>
+        <div class="orb-core" id="orbCore">
+          <div class="orb-shine"></div>
+          <div class="orb-center"></div>
+        </div>
+      </div>
+
+      <!-- Name + status -->
+      <h1 class="nova-title">NOVA</h1>
+      <p  class="nova-status" id="novaStatus">VOICE ASSISTANT ONLINE</p>
+
+      <!-- ★ MIC BUTTON ★ -->
+      <div class="mic-group">
+        <button class="mic-btn" id="micBtn" title="Tap to speak">
+          <span class="ring-pulse rp1"></span>
+          <span class="ring-pulse rp2"></span>
+          <!-- microphone icon -->
+          <svg id="svgMic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8"  y1="23" x2="16" y2="23"/>
+          </svg>
+          <!-- stop icon -->
+          <svg id="svgStop" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+            <rect x="5" y="5" width="14" height="14" rx="3"/>
+          </svg>
+        </button>
+        <span class="mic-label" id="micLabel">TAP TO SPEAK</span>
+      </div>
+
+      <!-- Text input -->
+      <div class="text-row">
+        <input id="txtBox" class="txt-box" type="text"
+               placeholder="Or type a command here…" autocomplete="off"/>
+        <button class="txt-send" id="txtSend">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- RIGHT: system info -->
+    <aside class="glass-panel">
+      <div class="panel-title"><span class="tico">◈</span> SYSTEM STATUS</div>
+
+      <div class="stat-card">
+        <div class="sc-name">SPEECH ENGINE</div>
+        <div class="sc-val" id="scSpeech">ACTIVE</div>
+        <div class="sc-bar"><div class="sc-fill" style="width:85%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-name">TTS ENGINE</div>
+        <div class="sc-val">READY</div>
+        <div class="sc-bar"><div class="sc-fill" style="width:70%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-name">RESPONSE TIME</div>
+        <div class="sc-val" id="scLatency">—</div>
+        <div class="sc-bar"><div class="sc-fill" id="scLatBar" style="width:50%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-name">SESSION TIME</div>
+        <div class="sc-val" id="scSession">00:00</div>
+        <div class="sc-bar"><div class="sc-fill" id="scSessBar" style="width:3%"></div></div>
+      </div>
+
+      <div class="panel-title" style="margin-top:1.2rem"><span class="tico">◉</span> CAPABILITIES</div>
+      <ul class="cap-list">
+        <li>🕐 Time &amp; Date</li>
+        <li>😄 Jokes &amp; Games</li>
+        <li>🔍 Google / YouTube Search</li>
+        <li>📖 Wikipedia Lookup</li>
+        <li>🚀 Open Any App</li>
+        <li>🌐 Open Websites</li>
+        <li>🔊 Volume Control</li>
+        <li>🧮 Calculator</li>
+        <li>🔒 Lock / Sleep PC</li>
+        <li>📷 Screenshots</li>
+        <li>🌤️ Weather &amp; News</li>
+        <li>💬 Smart Conversation</li>
+      </ul>
+    </aside>
+
+  </main>
+
+  <!-- bottom waveform -->
+  <div class="wavebar-row" id="waveRow"></div>
+
+  <!-- App scripts -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
