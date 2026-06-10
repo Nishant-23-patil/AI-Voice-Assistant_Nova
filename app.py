@@ -11,12 +11,7 @@ import urllib.parse
 
 from flask import Flask, render_template, request, jsonify
 
-# ── Optional: Wikipedia ───────────────────────────────
-try:
-    import wikipedia
-    WIKI = True
-except ImportError:
-    WIKI = False
+import requests
 
 # ── Optional: Windows volume control ─────────────────
 try:
@@ -173,24 +168,53 @@ def _calc_expr(expr: str) -> str:
         return None
 
 def _wikipedia_search(query: str) -> str:
-    if not WIKI:
-        url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(query)}"
-        webbrowser.open(url)
-        return f"I opened Wikipedia for {query} in your browser."
+    search_url = "https://en.wikipedia.org/w/api.php"
+    headers = {
+        "User-Agent": "NovaVoiceAssistant/2.0 (nishant@example.com)"
+    }
     try:
-        wikipedia.set_lang("en")
-        summary = wikipedia.summary(query, sentences=2, auto_suggest=True)
-        return summary
-    except wikipedia.exceptions.DisambiguationError as e:
-        try:
-            summary = wikipedia.summary(e.options[0], sentences=2)
-            return summary
-        except:
-            return f"I found multiple results for {query}. Could you be more specific?"
-    except Exception:
-        url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(query)}"
-        webbrowser.open(url)
-        return f"I opened Wikipedia for {query} in your browser."
+        # Step 1: Search for the most relevant page title
+        search_params = {
+            "action": "query",
+            "format": "json",
+            "list": "search",
+            "srsearch": query,
+            "utf8": 1,
+            "formatversion": 2
+        }
+        r = requests.get(search_url, params=search_params, headers=headers, timeout=5)
+        r.raise_for_status()
+        search_results = r.json().get("query", {}).get("search", [])
+        if not search_results:
+            return f"I couldn't find any Wikipedia pages matching '{query}'."
+        
+        # Get the top search result title
+        title = search_results[0]["title"]
+        
+        # Step 2: Fetch a 2-sentence extract of that page
+        extract_params = {
+            "action": "query",
+            "format": "json",
+            "prop": "extracts",
+            "exintro": True,
+            "explaintext": True,
+            "exsentences": 2,
+            "titles": title,
+            "formatversion": 2
+        }
+        r2 = requests.get(search_url, params=extract_params, headers=headers, timeout=5)
+        r2.raise_for_status()
+        pages = r2.json().get("query", {}).get("pages", [])
+        if pages and "extract" in pages[0] and pages[0]["extract"].strip():
+            return pages[0]["extract"].strip()
+            
+    except Exception as e:
+        print(f"[WIKI ERROR] {e}")
+        
+    # Fallback to browser search
+    url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(query)}"
+    webbrowser.open(url)
+    return f"I opened Wikipedia for '{query}' in your browser."
 
 # ════════════════════════════════════════════════════
 #  SMALL TALK RESPONSES
@@ -548,9 +572,9 @@ def api_chat():
     if not data or "text" not in data:
         return jsonify({"error": "No text provided"}), 400
     user_text = data["text"]
-    print(f"[NOVA] ← {user_text}")
+    print(f"[NOVA] <- {user_text}")
     reply = handle_command(user_text)
-    print(f"[NOVA] → {reply}")
+    print(f"[NOVA] -> {reply}")
     return jsonify({"reply": reply})
 
 if __name__ == "__main__":
