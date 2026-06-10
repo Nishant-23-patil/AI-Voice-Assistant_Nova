@@ -198,6 +198,69 @@
       text-align: center;
       margin-top: 6px;
     }
+
+    /* ── Smart Home Hub ── */
+    .smart-home-panel {
+      width: 100%;
+      max-width: 720px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel);
+      margin: 10px 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .panel-header {
+      font-size: .85rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: var(--accent);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .device-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all .2s;
+    }
+    .device-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(0,212,255,0.15);
+    }
+    .device-icon {
+      font-size: 1.4rem;
+    }
+    .device-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .device-name {
+      font-size: .78rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .device-status {
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+    .device-card.active .device-status {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -220,7 +283,48 @@
     Hello! I'm Nova, your AI voice assistant. You can type or use the 🎤 mic button to talk to me. Try asking me the time, a joke, or anything you like!
   </div>
 </div>
- 
+
+<div class="smart-home-panel" id="smartHomePanel">
+  <div class="panel-header">🏡 Smart Home Hub</div>
+  <div class="device-grid">
+    <div class="device-card" id="card_kitchen_light">
+      <div class="device-icon">💡</div>
+      <div class="device-info">
+        <div class="device-name">Kitchen Light</div>
+        <div class="device-status" id="status_kitchen_light">OFF</div>
+      </div>
+    </div>
+    <div class="device-card" id="card_living_room_light">
+      <div class="device-icon">💡</div>
+      <div class="device-info">
+        <div class="device-name">Living Room Light</div>
+        <div class="device-status" id="status_living_room_light">OFF</div>
+      </div>
+    </div>
+    <div class="device-card" id="card_kitchen_ac">
+      <div class="device-icon">❄️</div>
+      <div class="device-info">
+        <div class="device-name">Kitchen AC</div>
+        <div class="device-status" id="status_kitchen_ac">OFF</div>
+      </div>
+    </div>
+    <div class="device-card" id="card_living_room_ac">
+      <div class="device-icon">❄️</div>
+      <div class="device-info">
+        <div class="device-name">Living Room AC</div>
+        <div class="device-status" id="status_living_room_ac">OFF</div>
+      </div>
+    </div>
+    <div class="device-card" id="card_thermostat">
+      <div class="device-icon">🌡️</div>
+      <div class="device-info">
+        <div class="device-name">Thermostat</div>
+        <div class="device-status" id="status_thermostat">22°C</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer>
   <div class="input-row">
     <textarea id="textInput" placeholder="Type a message…" rows="1"></textarea>
@@ -301,6 +405,129 @@
   // Voices may not load immediately
   if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
  
+  // ── Web Audio API Arpeggio Chime ──
+  function playChime() {
+    if (!window.AudioContext && !window.webkitAudioContext) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      gain1.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.4);
+      
+      setTimeout(() => {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+        gain2.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start();
+        osc2.stop(ctx.currentTime + 0.4);
+      }, 120);
+      
+      setTimeout(() => {
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(783.99, ctx.currentTime); // G5
+        gain3.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain3.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start();
+        osc3.stop(ctx.currentTime + 0.6);
+      }, 240);
+    } catch(e) {
+      console.error("Audio Context failed to start:", e);
+    }
+  }
+
+  // ── Smart Home UI Handler ──
+  function updateSmartHomeUI(device, state) {
+    const card = document.getElementById(`card_${device}`);
+    const status = document.getElementById(`status_${device}`);
+    if (!card || !status) return;
+    
+    if (device === 'thermostat') {
+      status.textContent = `${state}°C`;
+      card.classList.add('active');
+    } else {
+      let isOn = false;
+      if (state === 'on') {
+        isOn = true;
+      } else if (state === 'off') {
+        isOn = false;
+      } else if (state === 'toggle') {
+        isOn = !card.classList.contains('active');
+      }
+      
+      if (isOn) {
+        card.classList.add('active');
+        status.textContent = 'ON';
+      } else {
+        card.classList.remove('active');
+        status.textContent = 'OFF';
+      }
+    }
+    
+    // Save to local storage
+    let shState = JSON.parse(localStorage.getItem("nova_smarthome") || "{}");
+    shState[device] = state;
+    localStorage.setItem("nova_smarthome", JSON.stringify(shState));
+  }
+
+  function loadSmartHome() {
+    let shState = JSON.parse(localStorage.getItem("nova_smarthome") || "{}");
+    // Defaults
+    if (shState.kitchen_light === undefined) shState.kitchen_light = 'off';
+    if (shState.living_room_light === undefined) shState.living_room_light = 'off';
+    if (shState.kitchen_ac === undefined) shState.kitchen_ac = 'off';
+    if (shState.living_room_ac === undefined) shState.living_room_ac = 'off';
+    if (shState.thermostat === undefined) shState.thermostat = '22';
+    
+    Object.keys(shState).forEach(device => {
+      updateSmartHomeUI(device, shState[device]);
+    });
+  }
+  loadSmartHome();
+
+  // ── Reminders Check Loop ──
+  setInterval(() => {
+    let reminders = JSON.parse(localStorage.getItem("nova_reminders") || "[]");
+    if (reminders.length === 0) return;
+    
+    let now = Date.now();
+    let active = [];
+    let triggered = [];
+    
+    reminders.forEach(r => {
+      if (now >= r.triggerTime) {
+        triggered.push(r);
+      } else {
+        active.push(r);
+      }
+    });
+    
+    if (triggered.length > 0) {
+      localStorage.setItem("nova_reminders", JSON.stringify(active));
+      triggered.forEach(r => {
+        playChime();
+        addMsg('nova', `⏰ REMINDER: ${r.text}`);
+        speak(`Attention Nishant, this is your reminder: ${r.text}`);
+      });
+    }
+  }, 1000);
+
   // ── Send message ──
   async function send(text) {
     text = text.trim();
@@ -322,6 +549,22 @@
       const reply = data.reply || data.error || 'Something went wrong.';
       addMsg('nova', reply);
       speak(reply);
+
+      // Smart Home handler
+      if (data.smart_home) {
+        updateSmartHomeUI(data.smart_home.device, data.smart_home.state);
+      }
+      
+      // Reminder handler
+      if (data.reminder) {
+        let reminders = JSON.parse(localStorage.getItem("nova_reminders") || "[]");
+        let triggerTime = Date.now() + (data.reminder.delaySeconds * 1000);
+        reminders.push({
+          text: data.reminder.text,
+          triggerTime: triggerTime
+        });
+        localStorage.setItem("nova_reminders", JSON.stringify(reminders));
+      }
     } catch (err) {
       hideTyping();
       addMsg('nova', 'Connection error. Make sure the server is running.');

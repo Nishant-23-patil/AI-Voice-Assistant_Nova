@@ -207,6 +207,106 @@ def _wikipedia_search(query: str) -> str:
     url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(query)}"
     return f"Here's the Wikipedia link for '{query}': {url}"
 
+def _get_weather(city: str) -> str:
+    url = f"https://wttr.in/{urllib.parse.quote(city)}?format=j1"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        current = data.get("current_condition", [{}])[0]
+        temp = current.get("temp_C", "unknown")
+        desc = current.get("weatherDesc", [{}])[0].get("value", "unknown")
+        humidity = current.get("humidity", "unknown")
+        wind = current.get("windspeedKmph", "unknown")
+        
+        loc_desc = ""
+        nearest_area = data.get("nearest_area", [{}])[0]
+        region = nearest_area.get("region", [{}])[0].get("value", "")
+        country = nearest_area.get("country", [{}])[0].get("value", "")
+        if region:
+            loc_desc = f" in {region}, {country}" if not city else f" in {city.capitalize()}"
+            
+        return f"The weather{loc_desc} is currently {desc} at {temp} degrees Celsius, with {humidity} percent humidity and winds at {wind} kilometers per hour."
+    except Exception as e:
+        print(f"[WEATHER ERROR] {e}")
+        search_city = city or "today"
+        return f"I couldn't fetch real-time weather details. Here's a search link instead: https://www.google.com/search?q=weather+{urllib.parse.quote(search_city)}"
+
+def _send_email(to_addr: str, subject: str, body: str) -> str:
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    user = os.environ.get("EMAIL_USER")
+    password = os.environ.get("EMAIL_PASSWORD")
+    server_addr = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    
+    if not user or not password:
+        return (
+            "I cannot send the email because your SMTP credentials are not configured. "
+            "Please configure the EMAIL_USER and EMAIL_PASSWORD environment variables."
+        )
+    
+    try:
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = user
+        msg['To'] = to_addr
+        
+        server = smtplib.SMTP(server_addr, port)
+        server.starttls()
+        server.login(user, password)
+        server.sendmail(user, [to_addr], msg.as_string())
+        server.quit()
+        return f"Email sent successfully to {to_addr}!"
+    except Exception as e:
+        return f"Failed to send email. Error: {e}"
+
+def _get_dictionary(word: str) -> str:
+    url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{urllib.parse.quote(word.strip())}"
+    try:
+        r = requests.get(url, timeout=5)
+        if r.status_code == 404:
+            return f"I couldn't find a dictionary entry for the word '{word}'."
+        r.raise_for_status()
+        data = r.json()
+        meanings = data[0].get("meanings", [])
+        if meanings:
+            partOfSpeech = meanings[0].get("partOfSpeech", "noun")
+            definition = meanings[0].get("definitions", [{}])[0].get("definition", "")
+            return f"According to the dictionary, '{word}' is a {partOfSpeech}. Definition: {definition}"
+    except Exception as e:
+        print(f"[DICTIONARY ERROR] {e}")
+    return f"Sorry, I had trouble looking up the definition for '{word}'."
+
+def _get_currency(amount_str: str, from_curr: str, to_curr: str) -> str:
+    from_curr = from_curr.upper().strip()
+    to_curr = to_curr.upper().strip()
+    try:
+        amount = float(amount_str)
+    except ValueError:
+        return "Please specify a valid numeric amount to convert."
+        
+    url = f"https://open.er-api.com/v6/latest/{from_curr}"
+    try:
+        r = requests.get(url, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        if data.get("result") == "error":
+            return f"Unsupported base currency '{from_curr}'."
+        rates = data.get("rates", {})
+        if to_curr not in rates:
+            return f"I couldn't find exchange rates for target currency '{to_curr}'."
+        rate = rates[to_curr]
+        result = amount * rate
+        return f"{amount} {from_curr} is equal to {result:.2f} {to_curr} at a rate of 1 to {rate:.4f}."
+    except Exception as e:
+        print(f"[CURRENCY ERROR] {e}")
+    return "I had trouble fetching currency exchange rates."
+
 # ════════════════════════════════════════════════════
 #  SMALL TALK RESPONSES
 # ════════════════════════════════════════════════════
@@ -274,6 +374,28 @@ INTENTS = [
     (r"\b(volume down|decrease volume|quieter|lower volume|turn down)\b", "volume_down"),
     # Mute
     (r"\b(mute|silence|quiet)\b", "mute"),
+    
+    # Send email
+    (r"\b(send email to|email to)\b\s*(\S+)\s*\b(with subject|subject)\b\s*(.+?)\s*\b(and body|body)\b\s*(.+)", "email"),
+    
+    # Reminders
+    (r"\b(remind me to|set reminder to)\b\s*(.+?)\s*\bin\b\s*(\d+)\s*\b(minute|minutes|second|seconds|hour|hours)\b", "reminder"),
+    
+    # Smart Home status
+    (r"\b(turn on|turn off|switch on|switch off|toggle)\b\s*(the)?\s*(kitchen light|living room light|living room ac|kitchen ac|light|ac)\b", "smart_home"),
+    (r"\b(set thermostat to|thermostat to|set temperature to)\b\s*.*?(\d+)", "thermostat"),
+
+    # Dictionary API
+    (r"\b(define|definition of|meaning of|what is the meaning of)\b\s*(.+)", "dictionary"),
+    
+    # Currency conversion
+    (r"\b(convert)\b\s*(\d+\.?\d*)\s*(\S+)\s*\b(to)\b\s*(\S+)", "currency"),
+
+    # Weather in a city
+    (r"\b(weather in|weather of|temperature in|how is the weather in)\b\s*(.+)", "weather_city"),
+    # Weather general
+    (r"\b(weather|temperature|forecast|how hot|how cold)\b", "weather"),
+    
     # Wikipedia
     (r"\b(wikipedia|wiki|tell me about|who is|what is|what are|explain|define|definition of)\b (.+)", "wikipedia"),
     # Math / calculate
@@ -285,8 +407,7 @@ INTENTS = [
     (r"\b(search|google|find|look up|search for)\b (.+)", "google_search"),
     # Open website
     (r"\b(open|go to|visit|browse)\b (.+\.com|.+\.in|.+\.org|.+\.net|.+\.io)", "open_website"),
-    # Weather
-    (r"\b(weather|temperature|forecast|how hot|how cold)\b", "weather"),
+    
     # News
     (r"\b(news|headlines|latest news|top news)\b", "news"),
     # Screenshot
@@ -307,8 +428,6 @@ INTENTS = [
     (r"\b(flip a coin|heads or tails|coin flip)\b", "flip_coin"),
     # Roll dice
     (r"\b(roll a dice|roll dice|dice|roll)\b", "roll_dice"),
-    # Alarm / reminder
-    (r"\b(remind me|set a reminder|alarm)\b", "reminder"),
 ]
 
 # ════════════════════════════════════════════════════
@@ -422,7 +541,93 @@ def handle_open_website(match, c):
     return f"Here's the link: {target}"
 
 def handle_weather():
-    return "Here's weather search: https://www.google.com/search?q=weather+today — click to open!"
+    return _get_weather("")
+
+def handle_weather_city(match):
+    city = match.group(2).strip()
+    return _get_weather(city)
+
+def handle_email(match):
+    recipient = match.group(2).strip()
+    subject = match.group(4).strip()
+    body = match.group(6).strip()
+    return _send_email(recipient, subject, body)
+
+def handle_reminder(match):
+    task = match.group(2).strip()
+    amount = int(match.group(3))
+    unit = match.group(4).strip().lower()
+    
+    if "second" in unit:
+        seconds = amount
+    elif "minute" in unit:
+        seconds = amount * 60
+    elif "hour" in unit:
+        seconds = amount * 3600
+    else:
+        seconds = amount
+        
+    return {
+        "reply": f"Setting a reminder to '{task}' in {amount} {unit}.",
+        "reminder": {
+            "text": task,
+            "delaySeconds": seconds
+        }
+    }
+
+def handle_smart_home(match):
+    action = match.group(1).strip().lower()
+    device_raw = match.group(3).strip().lower()
+    
+    device_id = ""
+    device_label = device_raw
+    
+    if "living room light" in device_raw:
+        device_id = "living_room_light"
+        device_label = "living room light"
+    elif "kitchen light" in device_raw or "light" in device_raw:
+        device_id = "kitchen_light"
+        device_label = "kitchen light"
+    elif "living room ac" in device_raw or "ac" in device_raw:
+        device_id = "living_room_ac"
+        device_label = "living room A C"
+    elif "kitchen ac" in device_raw:
+        device_id = "kitchen_ac"
+        device_label = "kitchen A C"
+        
+    state = "on"
+    if "off" in action:
+        state = "off"
+    elif "toggle" in action:
+        state = "toggle"
+        
+    return {
+        "reply": f"Understood. I have simulated turning {state} the {device_label}.",
+        "smart_home": {
+            "device": device_id,
+            "state": state
+        }
+    }
+
+def handle_thermostat(match):
+    temp = int(match.group(2))
+    return {
+        "reply": f"Understood. Thermostat target temperature set to {temp} degrees.",
+        "smart_home": {
+            "device": "thermostat",
+            "state": temp
+        }
+    }
+
+def handle_dictionary(match):
+    word = match.group(2).strip()
+    return _get_dictionary(word)
+
+def handle_currency(match):
+    amount = match.group(2).strip()
+    from_curr = match.group(3).strip()
+    to_curr = match.group(5).strip()
+    return _get_currency(amount, from_curr, to_curr)
 
 def handle_news():
     return "Here's Google News: https://news.google.com — click to open!"
@@ -473,14 +678,11 @@ def handle_roll_dice():
     result = random.randint(1, 6)
     return f"I rolled a dice — you got {result}!"
 
-def handle_reminder():
-    return "Reminder functionality is not set up yet. Try using your phone's alarm for now!"
-
 
 # ════════════════════════════════════════════════════
 #  CORE NLP DISPATCHER
 # ════════════════════════════════════════════════════
-def handle_command(raw: str) -> str:
+def handle_command(raw: str):
     c = raw.lower().strip()
 
     # 1. Small talk check first (fast path)
@@ -511,6 +713,15 @@ def handle_command(raw: str) -> str:
             if intent == "youtube_search": return handle_youtube(m)
             if intent == "google_search":  return handle_google_search(m)
             if intent == "open_website":   return handle_open_website(m, c)
+            
+            if intent == "email":          return handle_email(m)
+            if intent == "reminder":       return handle_reminder(m)
+            if intent == "smart_home":     return handle_smart_home(m)
+            if intent == "thermostat":     return handle_thermostat(m)
+            if intent == "dictionary":     return handle_dictionary(m)
+            if intent == "currency":       return handle_currency(m)
+            if intent == "weather_city":   return handle_weather_city(m)
+            
             if intent == "weather":        return handle_weather()
             if intent == "news":           return handle_news()
             if intent == "screenshot":     return handle_screenshot()
@@ -522,7 +733,6 @@ def handle_command(raw: str) -> str:
             if intent == "ip_address":     return handle_ip()
             if intent == "flip_coin":      return handle_flip_coin()
             if intent == "roll_dice":      return handle_roll_dice()
-            if intent == "reminder":       return handle_reminder()
 
     # 4. Fallback: echo back intelligently
     return (
@@ -546,9 +756,11 @@ def api_chat():
         return jsonify({"error": "No text provided"}), 400
     user_text = data["text"]
     print(f"[NOVA] <- {user_text}")
-    reply = handle_command(user_text)
-    print(f"[NOVA] -> {reply}")
-    return jsonify({"reply": reply})
+    res = handle_command(user_text)
+    print(f"[NOVA] -> {res}")
+    if isinstance(res, dict):
+        return jsonify(res)
+    return jsonify({"reply": res})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
