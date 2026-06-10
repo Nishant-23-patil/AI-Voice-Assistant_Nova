@@ -25,7 +25,7 @@ except Exception:
 ASSISTANT = "Nova"
 USER      = "Nishant"
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates', static_folder='../public', static_url_path='/')
 app.config["SECRET_KEY"] = "nova-local-nlp-2026"
 
 # ════════════════════════════════════════════════════
@@ -105,21 +105,12 @@ WEBSITES = {
 # ════════════════════════════════════════════════════
 def _open_app(name: str) -> str:
     key = name.lower().strip()
-    path = APPS.get(key)
-    if path:
-        try:
-            if path.startswith("ms-"):
-                os.startfile(path)
-            else:
-                subprocess.Popen(path, shell=True)
-            return f"Opening {name} for you!"
-        except Exception as e:
-            return f"I couldn't open {name}. Error: {e}"
+    if key in APPS:
+        return f"I'd open {name} for you, but app launching only works when Nova is running locally on your PC — not on the web version."
     return None
 
 def _open_website(url: str, label: str = "") -> str:
-    webbrowser.open(url)
-    return f"Opening {label or url} in your browser!"
+    return f"Here's the link you need: {url} — click it to open {label or url}!"
 
 def _get_volume() -> int:
     if not VOLUME_CTRL:
@@ -211,10 +202,9 @@ def _wikipedia_search(query: str) -> str:
     except Exception as e:
         print(f"[WIKI ERROR] {e}")
         
-    # Fallback to browser search
+    # Fallback
     url = f"https://en.wikipedia.org/wiki/{urllib.parse.quote(query)}"
-    webbrowser.open(url)
-    return f"I opened Wikipedia for '{query}' in your browser."
+    return f"Here's the Wikipedia link for '{query}': {url}"
 
 # ════════════════════════════════════════════════════
 #  SMALL TALK RESPONSES
@@ -363,12 +353,7 @@ def handle_open_app(match, c):
 
 def handle_close_app(match, c):
     target = match.group(2).strip() if match.lastindex and match.lastindex >= 2 else ""
-    target = re.sub(r'\b(app|application|program|software)\b', '', target).strip()
-    try:
-        subprocess.run(f"taskkill /f /im {target}.exe", shell=True, capture_output=True)
-        return f"Closing {target}."
-    except:
-        return f"I couldn't close {target}."
+    return f"App closing only works when Nova runs locally on your PC."
 
 def handle_set_volume(match):
     level = int(match.group(2))
@@ -416,14 +401,12 @@ def handle_calc(match, c):
 def handle_youtube(match):
     query = match.group(2).strip() if match.lastindex and match.lastindex >= 2 else ""
     url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
-    webbrowser.open(url)
-    return f"Searching YouTube for {query}!"
+    return f"Here's your YouTube search for {query}: {url}"
 
 def handle_google_search(match):
     query = match.group(2).strip() if match.lastindex and match.lastindex >= 2 else ""
     url = f"https://www.google.com/search?q={urllib.parse.quote(query)}"
-    webbrowser.open(url)
-    return f"Searching Google for {query}!"
+    return f"Here's your Google search for {query}: {url}"
 
 def handle_open_website(match, c):
     target = match.group(2).strip() if match.lastindex and match.lastindex >= 2 else ""
@@ -435,42 +418,31 @@ def handle_open_website(match, c):
     # Treat raw as URL
     if not target.startswith("http"):
         target = "https://" + target
-    webbrowser.open(target)
-    return f"Opening {target} in your browser!"
+    return f"Here's the link: {target}"
 
 def handle_weather():
-    webbrowser.open("https://www.google.com/search?q=weather+today")
-    return "Opening weather information in your browser!"
+    return "Here's weather search: https://www.google.com/search?q=weather+today — click to open!"
 
 def handle_news():
-    webbrowser.open("https://news.google.com")
-    return "Opening Google News for you!"
+    return "Here's Google News: https://news.google.com — click to open!"
 
 def handle_screenshot():
-    try:
-        subprocess.Popen("snippingtool.exe", shell=True)
-        return "Opening Snipping Tool for a screenshot!"
-    except:
-        return "I couldn't open the snipping tool."
+    return "Screenshot capture only works when Nova runs locally on your Windows PC."
 
 def handle_shutdown():
     return "Shutdown command requires confirmation. Please type 'confirm shutdown' for safety."
 
 def handle_confirmed_shutdown():
-    os.system("shutdown /s /t 5")
-    return "Shutting down your PC in 5 seconds. Goodbye!"
+    return "Shutdown commands only work when Nova runs locally on your PC."
 
 def handle_restart():
-    os.system("shutdown /r /t 5")
-    return "Restarting your PC in 5 seconds!"
+    return "Restart commands only work when Nova runs locally on your PC."
 
 def handle_sleep():
-    os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
-    return "Putting your PC to sleep. Good night!"
+    return "Sleep commands only work when Nova runs locally on your PC."
 
 def handle_lock():
-    os.system("rundll32.exe user32.dll,LockWorkStation")
-    return "Locking your screen. Stay safe!"
+    return "Screen lock only works when Nova runs locally on your PC."
 
 def handle_battery():
     try:
